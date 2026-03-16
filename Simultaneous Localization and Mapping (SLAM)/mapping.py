@@ -162,17 +162,36 @@ class Solution(Bot):
 
     # ------------------------------------------------------------------
     def mapping(self, measurements):
-        """
-        Transform local measurements to world frame and accumulate unique
-        landmark estimates (distance-threshold deduplication).
-        """
-        if len(measurements) == 0:
-            return
-        gm = local_to_global(measurements, self.pos, self.heading)
-        for p in gm:
-            if not self.learned_map or \
-               min(np.linalg.norm(p - q) for q in self.learned_map) > 2.0:
-                self.learned_map.append(p.copy())
+    """
+    Improved mapping with landmark update.
+    Instead of only adding new landmarks, we update existing ones
+    using simple averaging to reduce noise.
+    """
+
+    if len(measurements) == 0:
+        return
+
+    gm = local_to_global(measurements, self.pos, self.heading)
+
+    DIST_THRESHOLD = 2.0
+
+    for p in gm:
+        if not self.learned_map:
+            self.learned_map.append(p.copy())
+            continue
+
+        # compute distance to existing landmarks
+        dists = [np.linalg.norm(p - q) for q in self.learned_map]
+        nearest_idx = int(np.argmin(dists))
+
+        if dists[nearest_idx] < DIST_THRESHOLD:
+            # update landmark position (simple averaging)
+            self.learned_map[nearest_idx] = (
+                self.learned_map[nearest_idx] + p
+            ) / 2.0
+        else:
+            # create new landmark
+            self.learned_map.append(p.copy())
 
 # ── Problem 3 – Mapping ───────────────────────────────────────────────────────
 def make_problem3():

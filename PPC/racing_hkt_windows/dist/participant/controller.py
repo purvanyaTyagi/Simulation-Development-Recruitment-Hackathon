@@ -17,31 +17,50 @@ import numpy as np
 
 def steering(path: list[dict], state: dict):
 
-    length_of_car = 2.6
-    # Calculate steering angle based on path and vehicle state
+    L = 2.6  # vehicle wheelbase
+    lookahead_dist = 5.0
 
+    x = state["x"]
+    y = state["y"]
+    yaw = state["yaw"]
 
+    target = None
 
+    # find lookahead point
+    for wp in path:
+        dx = wp["x"] - x
+        dy = wp["y"] - y
+        dist = np.sqrt(dx**2 + dy**2)
 
+        if dist > lookahead_dist:
+            target = wp
+            break
 
+    if target is None:
+        target = path[-1]
 
-    steer = 0.0 # Default steer value
-    # 0.5 in the max steering angle in radians (about 28.6 degrees)
+    dx = target["x"] - x
+    dy = target["y"] - y
+
+    alpha = np.arctan2(dy, dx) - yaw
+
+    steer = np.arctan2(2 * L * np.sin(alpha), lookahead_dist)
+
     return np.clip(steer, -0.5, 0.5)
 
 
 def throttle_algorithm(target_speed, current_speed, dt):
 
+    Kp = 0.6
+    error = target_speed - current_speed
 
-
-
-
-    
-    
-    # generate the output for throttle command
-    throttle = 0
+    throttle = Kp * error
     brake = 0.0
-    # clip throttle and brake to [0, 1]
+
+    if throttle < 0:
+        brake = -throttle
+        throttle = 0
+
     return np.clip(throttle, 0.0, 1.0), np.clip(brake, 0.0, 1.0)
 
 def control(
